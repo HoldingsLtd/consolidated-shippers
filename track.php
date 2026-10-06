@@ -92,8 +92,8 @@ if ($shipment) {
         const held = p.kind === 'hold';
         const marker = L.circleMarker([p.lat, p.lng], {
           radius: moving || held ? 11 : 7,
-          color: moving || held ? '#8d2f2f' : '#1f6b4a',
-          fillColor: p.kind === 'end' ? '#10243b' : (moving || held ? '#c4473a' : '#2f9e62'),
+          color: held ? '#8d2f2f' : '#1f6b4a',
+          fillColor: p.kind === 'end' ? '#10243b' : (held ? '#c4473a' : '#2f9e62'),
           fillOpacity: 0.95,
           className: moving ? 'blink-pin' : ''
         }).addTo(map);
