@@ -24,14 +24,19 @@ if ($ref !== '') {
     }
 }
 $points = [];
+$history = [];
 if ($shipment) {
-    $points[] = ['label' => 'Departure: ' . $shipment['origin'], 'lat' => (float) $shipment['origin_lat'], 'lng' => (float) $shipment['origin_lng'], 'kind' => 'start'];
+    $held = (int) $shipment['halted'] === 1;
+    $points[] = ['label' => 'Departure: ' . $shipment['origin'], 'lat' => (float) $shipment['origin_lat'], 'lng' => (float) $shipment['origin_lng'], 'kind' => 'passed'];
+    $history[] = ['time' => 'Departure', 'location' => $shipment['origin'], 'detail' => 'Shipment left the origin desk.', 'image' => ''];
     foreach ($events as $event) {
+        $history[] = ['time' => $event['event_time'], 'location' => $event['location'], 'detail' => $event['detail'], 'image' => $event['image'] ?? ''];
         if ($event['lat'] !== null && $event['lng'] !== null) {
-            $points[] = ['label' => $event['event_time'] . ' · ' . $event['location'] . ' — ' . $event['detail'], 'lat' => (float) $event['lat'], 'lng' => (float) $event['lng'], 'kind' => 'passed'];
+            $points[] = ['label' => $event['event_time'] . ' · ' . $event['location'], 'lat' => (float) $event['lat'], 'lng' => (float) $event['lng'], 'kind' => 'passed'];
         }
     }
-    $points[] = ['label' => ((int) $shipment['halted'] === 1 ? 'On hold: ' : 'Current: ') . $shipment['current_label'], 'lat' => (float) $shipment['current_lat'], 'lng' => (float) $shipment['current_lng'], 'kind' => 'current'];
+    $points[] = ['label' => ($held ? 'On hold: ' : 'Current: ') . $shipment['current_label'], 'lat' => (float) $shipment['current_lat'], 'lng' => (float) $shipment['current_lng'], 'kind' => $held ? 'hold' : 'moving'];
+    $history[] = ['time' => 'Current', 'location' => $shipment['current_label'], 'detail' => $held ? ($shipment['halt_reason'] ?: 'Paused by the desk.') : 'In transit at the last recorded position.', 'image' => ''];
     $points[] = ['label' => 'Destination: ' . $shipment['destination'], 'lat' => (float) $shipment['dest_lat'], 'lng' => (float) $shipment['dest_lng'], 'kind' => 'end'];
 }
 ?>
@@ -58,18 +63,22 @@ if ($shipment) {
       </div>
       <p><?= e($shipment['mode']) ?> · <?= e($shipment['cargo']) ?><?php if ($shipment['eta']): ?> · ETA <?= e($shipment['eta']) ?><?php endif; ?></p>
       <div id="map"></div>
-      <h3>Points already passed</h3>
+      <h3>Travel history</h3>
       <div class="timeline">
-        <?php foreach (array_reverse($events) as $event): ?>
+        <?php foreach ($history as $stop): ?>
           <article>
-            <strong><?= e($event['event_time']) ?> · <?= e($event['location']) ?></strong>
-            <div><?= e($event['detail']) ?></div>
-            <?php if (!empty($event['image'])): ?><img src="<?= e($event['image']) ?>" alt="Stop photo" style="width:min(420px,100%);border-radius:12px;margin-top:8px"><?php endif; ?>
+            <strong><?= e($stop['time']) ?> · <?= e($stop['location']) ?></strong>
+            <div><?= e($stop['detail']) ?></div>
+            <?php if ($stop['image'] !== ''): ?><img class="stop-photo" src="<?= e($stop['image']) ?>" alt="Stop photo"><?php endif; ?>
           </article>
         <?php endforeach; ?>
-        <?php if (!$events): ?><p class="muted">No passed points have been logged yet. Departure and destination are still on the map.</p><?php endif; ?>
       </div>
     </div>
+    <style>
+      .stop-photo { width: 320px; height: 200px; max-width: 100%; object-fit: cover; border-radius: 12px; margin-top: 8px; display: block; background: #efe6d6; }
+      .blink-pin { animation: pinblink 1s steps(2, end) infinite; }
+      @keyframes pinblink { 50% { opacity: 0.25; } }
+    </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -79,11 +88,14 @@ if ($shipment) {
       const latlngs = points.map(p => [p.lat, p.lng]);
       const line = L.polyline(latlngs, { color: '#a97832', weight: 4 }).addTo(map);
       points.forEach(p => {
+        const moving = p.kind === 'moving';
+        const held = p.kind === 'hold';
         const marker = L.circleMarker([p.lat, p.lng], {
-          radius: p.kind === 'current' ? 10 : 7,
-          color: p.kind === 'current' ? '#8d2f2f' : '#10243b',
-          fillColor: p.kind === 'end' ? '#1f6b4a' : '#d7b073',
-          fillOpacity: 0.95
+          radius: moving || held ? 11 : 7,
+          color: moving || held ? '#8d2f2f' : '#1f6b4a',
+          fillColor: p.kind === 'end' ? '#10243b' : (moving || held ? '#c4473a' : '#2f9e62'),
+          fillOpacity: 0.95,
+          className: moving ? 'blink-pin' : ''
         }).addTo(map);
         marker.bindPopup(p.label);
       });
