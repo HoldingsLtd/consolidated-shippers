@@ -1,0 +1,1 @@
+ALTER TABLE shipment_events ADD COLUMN image VARCHAR(255) DEFAULT '';
