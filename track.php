@@ -1,5 +1,6 @@
 <?php
 $pageTitle = 'Track a shipment';
+// Map build: passed stops green, hold pin red, moving pin blinking green.
 require __DIR__ . '/includes/header.php';
 if (!function_exists('cs_db') && function_exists('cf_db')) {
     function cs_db(): ?PDO { return cf_db(); }
