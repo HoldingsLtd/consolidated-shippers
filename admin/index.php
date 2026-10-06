@@ -91,12 +91,15 @@ if (admin_ok() && $db && $_SERVER['REQUEST_METHOD'] === 'POST' && csrf_ok()) {
                 move_uploaded_file($_FILES['photo']['tmp_name'], dirname(__DIR__) . '/' . $image);
             }
         }
+        $title = trim($_POST['title'] ?? 'Update');
+        $badge = trim($_POST['badge'] ?? 'Departed');
+        $icon = trim($_POST['icon'] ?? 'truck');
         try {
-            $stmt = $db->prepare('INSERT INTO shipment_events (shipment_id, event_time, location, lat, lng, detail, image) VALUES (?,?,?,?,?,?,?)');
-            $stmt->execute([(int) $_POST['shipment_id'], $_POST['event_time'], trim($_POST['location'] ?? ''), $_POST['lat'] !== '' ? $_POST['lat'] : null, $_POST['lng'] !== '' ? $_POST['lng'] : null, trim($_POST['detail'] ?? ''), $image]);
+            $stmt = $db->prepare('INSERT INTO shipment_events (shipment_id, event_time, location, lat, lng, detail, image, title, badge, icon) VALUES (?,?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([(int) $_POST['shipment_id'], $_POST['event_time'], trim($_POST['location'] ?? ''), $_POST['lat'] !== '' ? $_POST['lat'] : null, $_POST['lng'] !== '' ? $_POST['lng'] : null, trim($_POST['detail'] ?? ''), $image, $title, $badge, $icon]);
         } catch (Throwable $e) {
-            $stmt = $db->prepare('INSERT INTO shipment_events (shipment_id, event_time, location, lat, lng, detail) VALUES (?,?,?,?,?,?)');
-            $stmt->execute([(int) $_POST['shipment_id'], $_POST['event_time'], trim($_POST['location'] ?? ''), $_POST['lat'] !== '' ? $_POST['lat'] : null, $_POST['lng'] !== '' ? $_POST['lng'] : null, trim($_POST['detail'] ?? '')]);
+            $stmt = $db->prepare('INSERT INTO shipment_events (shipment_id, event_time, location, lat, lng, detail, image) VALUES (?,?,?,?,?,?,?)');
+            $stmt->execute([(int) $_POST['shipment_id'], $_POST['event_time'], trim($_POST['location'] ?? ''), $_POST['lat'] !== '' ? $_POST['lat'] : null, $_POST['lng'] !== '' ? $_POST['lng'] : null, $title . ' — ' . trim($_POST['detail'] ?? ''), $image]);
         }
         header('Location: index.php?edit=' . (int) $_POST['shipment_id']);
         exit;
@@ -189,10 +192,13 @@ if ($db && isset($_GET['new'])) {
           <input type="hidden" name="shipment_id" value="<?= (int) $edit['id'] ?>">
           <div class="form-grid">
             <label>Time<input type="datetime-local" name="event_time" required></label>
+            <label>Title<input name="title" placeholder="Arrived at facility" required></label>
+            <label>Badge<select name="badge"><option>Departed</option><option>Arrived</option><option>On Hold</option><option>Pending</option></select></label>
+            <label>Icon<select name="icon"><option value="plane">Air</option><option value="truck">Road</option><option value="hold">Hold</option></select></label>
             <label>Location<input name="location" required></label>
             <label>Lat<input name="lat"></label>
             <label>Lng<input name="lng"></label>
-            <label class="full">What the customer should read<textarea name="detail" required></textarea></label>
+            <label class="full">Note the customer sees<textarea name="detail" required></textarea></label>
             <label class="full">Photo of this stop<input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></label>
             <div class="full"><button class="btn btn-navy" type="submit">Add passed point</button></div>
           </div>
